@@ -1,6 +1,7 @@
 <template>
   <div class="flex h-screen bg-gray-100">
-    <!-- Sidebar -->
+    
+    <!-- Left Sidebar (Tabs like Chats and etc.) -->
     <aside class="w-64 bg-white shadow-lg flex flex-col p-6">
       <div class="text-2xl font-bold text-blue-600 mb-4">Chat Dashboard</div>
       <nav class="flex-1 space-y-2">
@@ -18,6 +19,22 @@
     <main class="flex-1 p-8 overflow-auto">
       <slot />
     </main>
+
+    <!-- Right Sidebar (Active/Inactive Friends only) -->
+    <aside class="w-72 bg-white shadow-lg flex flex-col p-6 border-l">
+      <div class="text-lg font-bold mb-4 text-blue-600">🟢 Active Friends</div>
+      <ul class="space-y-3 overflow-y-auto">
+        <li class="flex items-center space-x-3">
+          <span class="h-3 w-3 rounded-full bg-green-500"></span>
+          <span>Jane Doe</span>
+        </li>
+        <li class="flex items-center space-x-3">
+          <span class="h-3 w-3 rounded-full bg-gray-400"></span>
+          <span>John Smith</span>
+        </li>
+        <!-- Add more friends and status here -->
+      </ul>
+    </aside>
   </div>
 </template>
 
@@ -28,32 +45,32 @@ import { toast } from 'vue-sonner'
 const router = useRouter()
 
 const logout = async () => {
-    await $fetch('/api/auth/logout', { method: 'POST' })
-    toast.success('You have been logged out.')
-    router.push('/user/login')
+  await $fetch('/api/auth/logout', { method: 'POST' })
+  toast.success('You have been logged out.')
+  router.push('/user/login')
 }
 </script>
 
 <style scoped>
 .nav-link {
-    display: block;
-    padding: 0.75rem 1rem;
-    border-radius: 0.5rem;
-    color: #374151;
-    /* text-gray-700 */
-    font-weight: 500;
-    transition: all 0.2s;
+  display: block;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  color: #374151;
+  /* text-gray-700 */
+  font-weight: 500;
+  transition: all 0.2s;
 }
 
 .nav-link:hover {
-    background-color: #f3f4f6;
-    /* bg-gray-100 */
+  background-color: #f3f4f6;
+  /* bg-gray-100 */
 }
 
 .router-link-active {
-    background-color: #e0f2fe;
-    /* bg-blue-100 */
-    color: #0284c7;
-    /* text-blue-600 */
+  background-color: #e0f2fe;
+  /* bg-blue-100 */
+  color: #0284c7;
+  /* text-blue-600 */
 }
 </style>
