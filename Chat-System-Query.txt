@@ -1,0 +1,269 @@
+CREATE TABLE users (
+  user_id INT AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(50) NOT NULL UNIQUE,
+  first_name VARCHAR(50) NOT NULL,
+  middle_name VARCHAR(50),
+  last_name VARCHAR(50) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  email VARCHAR(100),
+  phone VARCHAR(20),
+  position_id INT,
+  status ENUM('active', 'idle', 'inactive') DEFAULT 'active',
+  theme ENUM('light', 'dark') DEFAULT 'light',
+  role ENUM('user', 'admin', 'superadmin', 'supervisor') DEFAULT 'user',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME,
+  FOREIGN KEY (position_id) REFERENCES positions(position_id)
+);
+
+CREATE TABLE departments (
+  department_id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL UNIQUE,
+  created_by INT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (created_by) REFERENCES users(user_id)
+);
+
+CREATE TABLE positions (
+  position_id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  department_id INT NOT NULL,
+  created_by INT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (department_id) REFERENCES departments(department_id),
+  FOREIGN KEY (created_by) REFERENCES users(user_id),
+  UNIQUE (name, department_id)
+);
+
+CREATE TABLE groups (
+  group_id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  description TEXT,
+  created_by INT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (created_by) REFERENCES users(user_id)
+);
+
+CREATE TABLE group_members (
+  group_member_id INT AUTO_INCREMENT PRIMARY KEY,
+  group_id INT NOT NULL,
+  user_id INT NOT NULL,
+  role ENUM('member', 'admin') DEFAULT 'member',
+  joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (group_id) REFERENCES groups(group_id),
+  FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+CREATE TABLE chats (
+  chat_id INT AUTO_INCREMENT PRIMARY KEY,
+  is_group BOOLEAN DEFAULT FALSE,
+  group_id INT,
+  user1_id INT,
+  user2_id INT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (group_id) REFERENCES groups(group_id),
+  FOREIGN KEY (user1_id) REFERENCES users(user_id),
+  FOREIGN KEY (user2_id) REFERENCES users(user_id)
+);
+
+CREATE TABLE messages (
+  message_id INT AUTO_INCREMENT PRIMARY KEY,
+  chat_id INT NOT NULL,
+  sender_id INT NOT NULL,
+  content TEXT,
+  attachment_url VARCHAR(255),
+  message_type ENUM('text', 'image', 'video', 'file', 'call') DEFAULT 'text',
+  seen_by_admin BOOLEAN DEFAULT FALSE, -- 🆕 marks if superadmin has reviewed it
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  deleted_at DATETIME,
+  FOREIGN KEY (chat_id) REFERENCES chats(chat_id),
+  FOREIGN KEY (sender_id) REFERENCES users(user_id)
+);
+
+CREATE TABLE calls (
+  call_id INT AUTO_INCREMENT PRIMARY KEY,
+  chat_id INT NOT NULL,
+  initiator_id INT NOT NULL,
+  call_type ENUM('audio', 'video') DEFAULT 'video',
+  started_at DATETIME,
+  ended_at DATETIME,
+  status ENUM('missed', 'completed', 'declined', 'ongoing'),
+  FOREIGN KEY (chat_id) REFERENCES chats(chat_id),
+  FOREIGN KEY (initiator_id) REFERENCES users(user_id)
+);
+
+CREATE TABLE logs (
+  log_id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT, -- who performed the action (e.g., superadmin)
+  target_user_id INT, -- 🆕 user affected by the action
+  action VARCHAR(100) NOT NULL,
+  details TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(user_id),
+  FOREIGN KEY (target_user_id) REFERENCES users(user_id)
+);
+
+
+CREATE TABLE friends (
+  friendship_id INT AUTO_INCREMENT PRIMARY KEY,
+  requester_id INT NOT NULL,      -- the one who sends the request
+  receiver_id INT NOT NULL,       -- the one who receives the request
+  status ENUM('pending', 'accepted', 'rejected', 'blocked') DEFAULT 'pending',
+  requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  responded_at DATETIME,          -- when accepted/rejected
+  last_seen DATETIME,             -- optional: to track when each user last saw each other
+  FOREIGN KEY (requester_id) REFERENCES users(user_id),
+  FOREIGN KEY (receiver_id) REFERENCES users(user_id),
+  UNIQUE (requester_id, receiver_id)  -- to avoid duplicates
+);
+
+CREATE TABLE user_status (
+  user_id INT PRIMARY KEY,
+  last_active DATETIME,
+  is_online BOOLEAN DEFAULT FALSE,
+  FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+
+
+
+ORDER TO PASTE IN QUERY IN MYSQL:
+
+-- 1. Create departments WITHOUT foreign key first
+CREATE TABLE departments (
+  department_id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL UNIQUE,
+  created_by INT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 2. Create users WITHOUT foreign key to positions
+CREATE TABLE users (
+  user_id INT AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(50) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  first_name VARCHAR(50) NOT NULL,
+  middle_name VARCHAR(50),
+  last_name VARCHAR(50) NOT NULL,
+  email VARCHAR(100),
+  phone VARCHAR(20),
+  position_id INT,
+  status ENUM('active', 'idle', 'inactive') DEFAULT 'active',
+  theme ENUM('light', 'dark') DEFAULT 'light',
+  role ENUM('user', 'admin', 'superadmin', 'supervisor') DEFAULT 'user',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME
+);
+
+-- 3. Create positions (departments now exists)
+CREATE TABLE positions (
+  position_id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  department_id INT NOT NULL,
+  created_by INT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (name, department_id),
+  FOREIGN KEY (department_id) REFERENCES departments(department_id),
+  FOREIGN KEY (created_by) REFERENCES users(user_id)
+);
+
+-- 4. Add foreign key from users to positions (now that positions exists)
+ALTER TABLE users
+ADD CONSTRAINT fk_position_id FOREIGN KEY (position_id) REFERENCES positions(position_id);
+
+-- 5. Add foreign key from departments to users (now that users exists)
+ALTER TABLE departments
+ADD CONSTRAINT fk_created_by FOREIGN KEY (created_by) REFERENCES users(user_id);
+
+
+CREATE TABLE groups (
+  group_id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  description TEXT,
+  created_by INT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (created_by) REFERENCES users(user_id)
+);
+
+CREATE TABLE group_members (
+  group_member_id INT AUTO_INCREMENT PRIMARY KEY,
+  group_id INT NOT NULL,
+  user_id INT NOT NULL,
+  role ENUM('member', 'admin') DEFAULT 'member',
+  joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (group_id) REFERENCES groups(group_id),
+  FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+CREATE TABLE chats (
+  chat_id INT AUTO_INCREMENT PRIMARY KEY,
+  is_group BOOLEAN DEFAULT FALSE,
+  group_id INT,
+  user1_id INT,
+  user2_id INT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (group_id) REFERENCES groups(group_id),
+  FOREIGN KEY (user1_id) REFERENCES users(user_id),
+  FOREIGN KEY (user2_id) REFERENCES users(user_id)
+);
+
+CREATE TABLE messages (
+  message_id INT AUTO_INCREMENT PRIMARY KEY,
+  chat_id INT NOT NULL,
+  sender_id INT NOT NULL,
+  content TEXT,
+  attachment_url VARCHAR(255),
+  message_type ENUM('text', 'image', 'video', 'file', 'call') DEFAULT 'text',
+  seen_by_admin BOOLEAN DEFAULT FALSE,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  deleted_at DATETIME,
+  FOREIGN KEY (chat_id) REFERENCES chats(chat_id),
+  FOREIGN KEY (sender_id) REFERENCES users(user_id)
+);
+
+CREATE TABLE calls (
+  call_id INT AUTO_INCREMENT PRIMARY KEY,
+  chat_id INT NOT NULL,
+  initiator_id INT NOT NULL,
+  call_type ENUM('audio', 'video') DEFAULT 'video',
+  started_at DATETIME,
+  ended_at DATETIME,
+  status ENUM('missed', 'completed', 'declined', 'ongoing'),
+  FOREIGN KEY (chat_id) REFERENCES chats(chat_id),
+  FOREIGN KEY (initiator_id) REFERENCES users(user_id)
+);
+
+CREATE TABLE logs (
+  log_id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT, -- who performed the action (e.g., superadmin)
+  target_user_id INT, -- user affected
+  action VARCHAR(100) NOT NULL,
+  details TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(user_id),
+  FOREIGN KEY (target_user_id) REFERENCES users(user_id)
+);
+
+CREATE TABLE friends (
+  friendship_id INT AUTO_INCREMENT PRIMARY KEY,
+  requester_id INT NOT NULL,      -- the one who sends the request
+  receiver_id INT NOT NULL,       -- the one who receives the request
+  status ENUM('pending', 'accepted', 'rejected', 'blocked') DEFAULT 'pending',
+  requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  responded_at DATETIME,          -- when accepted/rejected
+  last_seen DATETIME,             -- optional: to track when each user last saw each other
+  FOREIGN KEY (requester_id) REFERENCES users(user_id),
+  FOREIGN KEY (receiver_id) REFERENCES users(user_id),
+  UNIQUE (requester_id, receiver_id)  -- to avoid duplicates
+);
+
+CREATE TABLE user_status (
+  user_id INT PRIMARY KEY,
+  last_active DATETIME,
+  is_online BOOLEAN DEFAULT FALSE,
+  FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+
